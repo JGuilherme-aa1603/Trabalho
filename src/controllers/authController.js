@@ -1,25 +1,8 @@
-import express from "express";
-import mysql from "mysql2";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import db from "../databaseConfig.js";
 
-const app = express();
-app.use(express.json());
-
-const db = mysql.createConnection({
-  host: "127.0.0.1",
-  user: "root",
-  password: "Timaeus1!",
-  database: "arvore",
-  port: 3306
-});
-
-db.connect(err => {
-  if (err) {
-    console.error("Erro ao conectar ao MySQL:", err);
-    return;
-  }
-  console.log("Conectado ao MySQL!");
-});
+const jwtSecret = process.env.JWT_SECRET;
 
 const register = async (req, res) => {
   const { email, nome, senha } = req.body;
@@ -70,7 +53,7 @@ const login = async (req, res) => {
     // Criar token JWT
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      "segredo_super_forte", // depois coloca em variáveis de ambiente (.env)
+      jwtSecret,
       { expiresIn: "1h" }
     );
 
@@ -78,8 +61,9 @@ const login = async (req, res) => {
   });
 };
 
-app.listen(3000, () => {
-  console.log("Servidor rodando em http://localhost:3000");
-});
+const authController = {
+  register,
+  login
+};
 
-module.exports = { register, login };
+export default authController;
