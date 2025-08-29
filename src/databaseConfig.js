@@ -1,19 +1,16 @@
-import mysql from "mysql2";
+import pkg from 'pg';
+const { Client } = pkg;
 
-const db = mysql.createConnection({
-  host: "127.0.0.1",
-  user: "root",
-  password: "Timaeus1!",
-  database: "arvore",
-  port: 3306
+const db = new Client({
+  connectionString: process.env.DATABASE_URL,
 });
 
 db.connect(err => {
   if (err) {
-    console.error("Erro ao conectar ao MySQL:", err);
+    console.error("Erro ao conectar ao PostgreSQL:", err);
     return;
   }
-  console.log("Conectado ao MySQL!");
+  console.log("Conectado ao PostgreSQL!");
 });
 
 export default db;

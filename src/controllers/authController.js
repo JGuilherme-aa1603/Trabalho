@@ -1,8 +1,5 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import db from "../databaseConfig.js";
-
-const jwtSecret = process.env.JWT_SECRET;
+import registerService from "./services/registerService.js";
+import loginService from "./services/loginService.js";
 
 const register = async (req, res) => {
   const { email, nome, senha } = req.body;
@@ -11,17 +8,19 @@ const register = async (req, res) => {
     return res.status(400).json({ error: "Preencha todos os campos" });
   }
 
-  // Criptografar senha
-  const hashedsenha = await bcrypt.hash(senha, 10);
+  try {
+    await registerService(email, nome, senha);
 
-  const sql = "INSERT INTO usuarios (email, nome, senha) VALUES (?, ?, ?)";
-  db.query(sql, [email, nome, hashedsenha], (err, result) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Erro ao cadastrar" });
-    }
     res.status(201).json({ message: "Usuário cadastrado com sucesso!" });
-  });
+  } catch (err) {
+    console.error(err);
+
+    if (err.message === "Email já cadastrado") {
+      return res.status(409).json({ error: err.message });
+    }
+
+    res.status(500).json({ error: "Erro ao cadastrar" });
+  }
 };
 
 const login = async (req, res) => {
@@ -31,34 +30,23 @@ const login = async (req, res) => {
     return res.status(400).json({ error: "Preencha email e senha" });
   }
 
-  const sql = "SELECT * FROM usuarios WHERE email = ?";
-  db.query(sql, [email], async (err, results) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Erro no servidor" });
+  try {
+    const token = await loginService(email, senha);
+
+    res.status(200).json({ message: "Login realizado com sucesso!", token });
+
+  } catch (err) {
+    console.error(err);
+
+    if (err.message === "Usuário não encontrado") {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.message === "Senha incorreta") {
+      return res.status(401).json({ error: err.message });
     }
 
-    if (results.length === 0) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
-    }
-
-    const user = results[0];
-
-    // Comparar senha digitada com a hash salva
-    const validsenha = await bcrypt.compare(senha, user.senha);
-    if (!validsenha) {
-      return res.status(401).json({ error: "Senha incorreta" });
-    }
-
-    // Criar token JWT
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      jwtSecret,
-      { expiresIn: "1h" }
-    );
-
-    res.json({ message: "Login realizado com sucesso!", token });
-  });
+    res.status(500).json({ error: "Erro no servidor" });
+  }
 };
 
 const authController = {
