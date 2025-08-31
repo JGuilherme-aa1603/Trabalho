@@ -1,11 +1,24 @@
 import registerService from "./services/registerService.js";
 import loginService from "./services/loginService.js";
+import { z } from "zod";
+
+const registerSchema = z.object({
+  email: z.email(),
+  nome: z.string().min(2).max(100),
+  senha: z.string().min(5).max(100)
+});
 
 const register = async (req, res) => {
   const { email, nome, senha } = req.body;
 
-  if (!email || !nome || !senha) {
-    return res.status(400).json({ error: "Preencha todos os campos" });
+  const validation = registerSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({
+      error: validation.error.issues.map(issue => ({
+        message: issue.message,
+        path: issue.path
+      }))
+    });
   }
 
   try {
@@ -23,11 +36,22 @@ const register = async (req, res) => {
   }
 };
 
+const loginSchema = z.object({
+  email: z.email(),
+  senha: z.string().min(5).max(100)
+});
+
 const login = async (req, res) => {
   const { email, senha } = req.body;
 
-  if (!email || !senha) {
-    return res.status(400).json({ error: "Preencha email e senha" });
+  const validation = loginSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({
+      error: validation.error.issues.map(issue => ({
+        message: issue.message,
+        path: issue.path
+      }))
+    });
   }
 
   try {
