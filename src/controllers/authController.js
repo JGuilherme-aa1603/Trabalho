@@ -9,8 +9,6 @@ const registerSchema = z.object({
 });
 
 const register = async (req, res) => {
-  const { email, nome, senha } = req.body;
-
   const validation = registerSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -20,6 +18,8 @@ const register = async (req, res) => {
       }))
     });
   }
+
+  const { email, nome, senha } = validation.data;
 
   try {
     await registerService(email, nome, senha);
@@ -42,8 +42,6 @@ const loginSchema = z.object({
 });
 
 const login = async (req, res) => {
-  const { email, senha } = req.body;
-
   const validation = loginSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -54,6 +52,8 @@ const login = async (req, res) => {
     });
   }
 
+  const { email, senha } = validation.data;
+  
   try {
     const token = await loginService(email, senha);
 
