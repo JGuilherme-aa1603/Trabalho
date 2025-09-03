@@ -1,116 +1,151 @@
-import createCommitment from "./services/createCommitment.js";
+import prisma from "../prismaClient.js";
+import { z } from "zod";
 import getCommitmentById from "./services/getCommitmentById.js";
-import getAllCommitments from "./services/getAllCommitments.js";
 import updateCommitment from "./services/updateCommitment.js";
 import deleteCommitment from "./services/deleteCommitment.js";
-import { z } from "zod";
 
-const commitmentSchema = z.object({
-  nome: z.string().min(2).max(100),
-  promessa: z.string().min(5).max(500)
+const createCommitmentSchema = z.object({
+  titulo: z.string().min(2, "O título é muito curto").max(100),
+  descricao: z.string().min(2, "A descrição é muito curta").max(500),
+  categoria_id: z.number().int().positive("A categoria é obrigatória"),
 });
-
-const updateSchema = z.object({
-    id: z.string(),
-    data: commitmentSchema
-});
-
-const idSchema = z.string();
 
 const create = async (req, res) => {
-    const validation = commitmentSchema.safeParse(req.body);
-    if (!validation.success) {
-        return res.status(400).json({ error: validation.error });
-    }
-    try {
-        const { nome, promessa } = validation.data;
-        const usuario_id = req.user.id;
+  const validation = createCommitmentSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues });
+  }
+  try {
+    const { titulo, descricao, categoria_id } = validation.data;
+    const usuario_id = req.user.id;
 
-        const commitment = await createCommitment(usuario_id, nome, promessa);
-        return res.status(201).json(commitment);
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
-
-};
-
-const getById = async (req, res) => {
-    const validation = idSchema.safeParse(req.params.id);
-    if (!validation.success) {
-        return res.status(400).json({ error: validation.error });
-    }
-
-    const id = Number(validation.data);
-
-    try {
-        const commitment = await getCommitmentById(id);
-        if (!commitment) {
-            return res.status(404).json({ error: "Compromisso não encontrado" });
-        }
-        return res.status(200).json(commitment);
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
+    const commitment = await prisma.promessas.create({
+      data: {
+        titulo,
+        promessa: descricao,
+        categoria_id,
+        usuario_id,
+      },
+      include: {
+        usuarios: {
+          select: { nome: true },
+        },
+        categorias: {
+          select: { nome: true },
+        },
+      },
+    });
+    return res.status(201).json(commitment);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao criar compromisso" });
+  }
 };
 
 const getAll = async (req, res) => {
-    try {
-        const commitments = await getAllCommitments();
-        return res.status(200).json(commitments);
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
+  try {
+    const commitments = await prisma.promessas.findMany({
+      where: {
+        ativo: true, // Apenas compromissos ativos
+      },
+      orderBy: {
+        data_criacao: "desc",
+      },
+      include: {
+        usuarios: {
+          select: {
+            id: true,
+            nome: true,
+          },
+        },
+        categorias: {
+          select: {
+            id: true,
+            nome: true,
+            icone_nome: true,
+          },
+        },
+      },
+    });
+    return res.status(200).json(commitments);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao buscar compromissos" });
+  }
 };
 
+const getById = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+
+    const commitment = await getCommitmentById(id);
+    if (!commitment) {
+      return res.status(404).json({ error: "Compromisso não encontrado" });
+    }
+
+    return res.status(200).json(commitment);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao buscar compromisso" });
+  }
+};
+
+const updateCommitmentSchema = z.object({
+  titulo: z.string().min(2, "O título é muito curto").max(100).optional(),
+  promessa: z.string().min(2, "A descrição é muito curta").max(500).optional(),
+  categoria_id: z
+    .number()
+    .int()
+    .positive("A categoria é obrigatória")
+    .optional(),
+});
+
 const update = async (req, res) => {
-    const validation = updateSchema.safeParse({
-        id: req.params.id,
-        data: req.body
-    });
+  const validation = updateCommitmentSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ error: validation.error.issues });
+  }
 
-    if (!validation.success) {
-        return res.status(400).json({ error: validation.error });
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) {
+      return res.status(400).json({ error: "ID inválido" });
     }
 
-    const { id, data } = validation.data;
-
-    try {
-        const commitment = await updateCommitment(Number(id), data);
-        if (!commitment) {
-            return res.status(404).json({ error: "Compromisso não encontrado" });
-        }
-        return res.status(200).json(commitment);
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
+    const updatedCommitment = await updateCommitment(id, validation.data);
+    return res.status(200).json(updatedCommitment);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao atualizar compromisso" });
+  }
 };
 
 const deleteC = async (req, res) => {
-    const validation = idSchema.safeParse(req.params.id);
-    if (!validation.success) {
-        return res.status(400).json({ error: validation.error });
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) {
+      return res.status(400).json({ error: "ID inválido" });
     }
 
-    const id = Number(validation.data);
-
-    try {
-        const commitment = await deleteCommitment(id);
-        if (!commitment) {
-            return res.status(404).json({ error: "Compromisso não encontrado" });
-        }
-        return res.status(200).json(commitment);
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
+    await deleteCommitment(id);
+    return res
+      .status(200)
+      .json({ message: "Compromisso deletado com sucesso" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao deletar compromisso" });
+  }
 };
 
 const commitmentController = {
   create,
-  getById,
   getAll,
+  getById,
   update,
-  deleteC
-
+  deleteC,
 };
 
 export default commitmentController;
