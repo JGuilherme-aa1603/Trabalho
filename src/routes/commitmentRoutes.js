@@ -5,7 +5,7 @@ import checkCommitmentOwnership from "../middlewares/commitmentMiddleware.js";
 
 const commitmentRouter = express.Router();
 
-commitmentRouter.get("/", authMiddleware, commitmentController.getAll);
+commitmentRouter.get("/", commitmentController.getAll);
 commitmentRouter.post("/", authMiddleware, commitmentController.create);
 commitmentRouter.get("/:id", authMiddleware, commitmentController.getById);
 
