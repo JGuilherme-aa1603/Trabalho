@@ -38,6 +38,5 @@ model usuarios {
 model categorias {
   id         Int         @id @default(autoincrement())
   nome       String      @unique @db.VarChar(50)
-  icone_nome String?     @db.VarChar(50)
   promessas  promessas[]
 }

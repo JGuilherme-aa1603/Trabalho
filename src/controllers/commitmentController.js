@@ -61,8 +61,7 @@ const getAll = async (req, res) => {
         categorias: {
           select: {
             id: true,
-            nome: true,
-            icone_nome: true,
+            nome: true
           },
         },
       },
